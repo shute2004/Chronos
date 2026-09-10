@@ -30,6 +30,7 @@ function App() {
   const [notes, setNotes] = useState(initialNotes);
   const [selectedId, setSelectedId] = useState(initialNotes[0].id);
   const [savedHtml, setSavedHtml] = useState(initialNotes[0].content);
+  const [draftHtml, setDraftHtml] = useState(initialNotes[0].content);
 
   const selected = useMemo(
     () => notes.find((note) => note.id === selectedId) ?? notes[0],
@@ -39,16 +40,19 @@ function App() {
   const editor = useEditor({
     extensions: [StarterKit],
     content: selected.content,
+    onUpdate: ({ editor: updatedEditor }) => {
+      setDraftHtml(updatedEditor.getHTML());
+    },
   });
 
   useEffect(() => {
     if (!editor) return;
-    editor.commands.setContent(selected.content, false);
+    editor.commands.setContent(selected.content, { emitUpdate: false });
+    setDraftHtml(selected.content);
     setSavedHtml(selected.content);
-  }, [editor, selected.id]);
+  }, [editor, selected.id, selected.content]);
 
-  const currentHtml = editor?.getHTML() ?? selected.content;
-  const dirty = currentHtml !== savedHtml;
+  const dirty = draftHtml !== savedHtml;
 
   function chooseNote(note: Note) {
     if (!editor) return;
@@ -65,6 +69,7 @@ function App() {
     setNotes((current) =>
       current.map((item) => (item.id === selected.id ? { ...item, content: updated } : item)),
     );
+    setDraftHtml(updated);
     setSavedHtml(updated);
   }
 
