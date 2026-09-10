@@ -55,8 +55,7 @@ def test_metadata_round_trip_preserves_visible_content_exactly(tmp_path: Path, v
     target = tmp_path / "note.md"
     storage.save_file_with_payload(target, visible, b"payload-v1")
 
-    first = target.read_text("utf-8", newline="") if False else None
-    # Read without universal-newline translation so the assertion covers CRLF.
+    # Read without universal-newline translation so this also covers CRLF.
     with target.open("r", encoding="utf-8", newline="") as handle:
         first_text = handle.read()
     assert storage._remove_chronos_comments(first_text) == visible
