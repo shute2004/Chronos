@@ -30,11 +30,51 @@ def test_resave_removes_old_chronos_comments(tmp_path: Path) -> None:
     assert locator_b64 is not None
     old_chunk = json.loads(base64.b64decode(locator_b64))["chunk_id"]
 
-    storage.save_file_with_payload(target, "v2", b"payload-v2")
+    storage.save_file_with_payload(target, first, b"payload-v2")
     second = target.read_text("utf-8")
 
     assert f"chronos-chunk-{old_chunk}" not in second
     assert storage.load_payload(target) == b"payload-v2"
+    assert storage._remove_chronos_comments(second) == "v1"
+
+
+@pytest.mark.parametrize(
+    "visible",
+    [
+        "",
+        "  leading whitespace",
+        "trailing whitespace  ",
+        "\n\nleading blank lines\nbody",
+        "body\n",
+        "body\n\n\n",
+        "  \nbody\n  \n\n",
+        "\tindented\r\nbody\r\n\r\n",
+    ],
+)
+def test_metadata_round_trip_preserves_visible_content_exactly(tmp_path: Path, visible: str) -> None:
+    target = tmp_path / "note.md"
+    storage.save_file_with_payload(target, visible, b"payload-v1")
+
+    first = target.read_text("utf-8", newline="") if False else None
+    # Read without universal-newline translation so the assertion covers CRLF.
+    with target.open("r", encoding="utf-8", newline="") as handle:
+        first_text = handle.read()
+    assert storage._remove_chronos_comments(first_text) == visible
+
+    storage.save_file_with_payload(target, first_text, b"payload-v2")
+    with target.open("r", encoding="utf-8", newline="") as handle:
+        second_text = handle.read()
+    assert storage._remove_chronos_comments(second_text) == visible
+    assert storage.load_payload(target) == b"payload-v2"
+
+
+def test_user_authored_inline_chronos_like_comment_is_not_removed(tmp_path: Path) -> None:
+    visible = "before <!-- chronos-custom: keep-me --> after\n"
+    target = tmp_path / "note.md"
+    storage.save_file_with_payload(target, visible, b"payload")
+    with target.open("r", encoding="utf-8", newline="") as handle:
+        saved = handle.read()
+    assert storage._remove_chronos_comments(saved) == visible
 
 
 def test_missing_file_has_no_payload(tmp_path: Path) -> None:
