@@ -1,0 +1,23 @@
+[project]
+name = "chronos-history-core"
+version = "0.1.0"
+description = "Embedded Markdown history engine used by Chronos"
+requires-python = ">=3.12"
+dependencies = [
+  "py7zr>=1.0.0",
+  "diff-match-patch>=20241021",
+]
+license = { text = "UNLICENSED" }
+
+[project.optional-dependencies]
+dev = ["pytest>=8.4.2"]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["chronos"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
