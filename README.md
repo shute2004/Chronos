@@ -7,9 +7,9 @@ Chronos is a local-first Markdown version-history experiment. Its core idea is t
 This repository intentionally separates two parts:
 
 - `backend/` — working Python history core with tests.
-- `frontend-prototype/` — a desktop-editor prototype kept as a separate design artifact. It is **not currently wired to the Python history core**.
+- `frontend-prototype/` — a standalone React/Tiptap editor UI prototype. It is **not currently wired to the Python history core** and does not perform real filesystem persistence.
 
-The public snapshot does not claim that the desktop editor and history engine form one finished application.
+The public snapshot does not claim that the editor prototype and history engine form one finished application.
 
 ## History core
 
@@ -27,7 +27,7 @@ Implementation highlights:
 - 7z payload compression with an in-memory extraction limit.
 - locator + chunk tags for embedded payload addressing.
 - atomic replacement through a temporary file and `os.replace`.
-- explicit errors for missing or malformed payloads.
+- strict Base64 validation and explicit malformed-payload errors.
 - line-delimited JSON command interface on stdin/stdout.
 
 ### Development
@@ -51,9 +51,25 @@ Example command:
 
 The command process returns one JSON response per input line.
 
-## Desktop editor prototype
+## Editor UI prototype
 
-`frontend-prototype/` demonstrates the intended desktop editing experience separately from the history engine. It is useful as UI/desktop application work, but the current public snapshot treats it as a prototype rather than claiming end-to-end Chronos integration.
+`frontend-prototype/` demonstrates the intended editing surface separately from the history engine. It includes a file-list concept, a Tiptap rich-text editing surface, dirty/saved state, and an explicit integration-boundary indicator.
+
+```bash
+cd frontend-prototype
+npm install
+npm run build
+npm run dev
+```
+
+The prototype intentionally keeps its sample documents in React state. Real file I/O and history-core integration are outside this public prototype.
+
+## Verification
+
+GitHub Actions checks both independent parts:
+
+- Python: install the backend package and run `pytest`.
+- TypeScript: install the editor-prototype dependencies and run the production build.
 
 ## Trade-offs
 
