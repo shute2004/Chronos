@@ -28,7 +28,10 @@ Implementation highlights:
 - locator + chunk tags for embedded payload addressing.
 - atomic replacement through a temporary file and `os.replace`.
 - strict Base64 validation and explicit malformed-payload errors.
+- preservation of the user-authored Markdown text around Chronos metadata, including leading/trailing whitespace, empty documents, repeated trailing newlines, and LF/CRLF line endings.
 - line-delimited JSON command interface on stdin/stdout.
+
+The storage tests explicitly exercise the content-preservation invariant when Chronos metadata is added and replaced. Chronos operates on UTF-8 text; the claim is exact preservation of the Markdown text supplied to the storage layer, not arbitrary non-UTF-8 byte preservation.
 
 ### Development
 
