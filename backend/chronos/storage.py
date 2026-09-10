@@ -14,6 +14,13 @@ from .exceptions import ChronosError, InvalidPayloadError, PayloadNotFoundError
 _LOCATOR_TAG = "chronos-locator"
 _CHUNK_TAG_PREFIX = "chronos-chunk-"
 _COMMENT_RE = re.compile(r"<!--\s*(?P<tag>[\w-]+)\s*:\s*(?P<content>\S+)\s*-->")
+_TRAILING_METADATA_RE = re.compile(
+    r"(?P<separator>\r\n|\n|\r)"
+    r"<!--\s*chronos-chunk-(?P<chunk_id>[\w-]+)\s*:\s*\S+\s*-->"
+    r"(?P<newline>\r\n|\n|\r)"
+    r"<!--\s*chronos-locator\s*:\s*\S+\s*-->"
+    r"(?:\r\n|\n|\r)?\Z"
+)
 
 
 def _find_tag_in_content(content: str, tag_to_find: str) -> Optional[str]:
@@ -25,13 +32,16 @@ def _find_tag_in_content(content: str, tag_to_find: str) -> Optional[str]:
 
 
 def _remove_chronos_comments(content: str) -> str:
-    cleaned: list[str] = []
-    for line in content.splitlines():
-        match = _COMMENT_RE.search(line)
-        if match and match.group("tag").startswith("chronos-"):
-            continue
-        cleaned.append(line)
-    return "\n".join(cleaned)
+    """Remove only the Chronos metadata block appended by this module.
+
+    The function intentionally does not split or rejoin the document. This
+    preserves every character of the user-authored Markdown body, including
+    leading whitespace, trailing whitespace, blank lines, and line endings.
+    """
+    match = _TRAILING_METADATA_RE.search(content)
+    if not match:
+        return content
+    return content[: match.start()]
 
 
 def _decode_base64(value: str) -> bytes:
@@ -79,17 +89,21 @@ def save_file_with_payload(target_path: Path, markdown_content: str, payload_dat
     locator = {"chunk_id": chunk_id, "format": "v1"}
     locator_b64 = base64.b64encode(json.dumps(locator, separators=(",", ":")).encode("utf-8")).decode("ascii")
 
-    cleaned_content = _remove_chronos_comments(markdown_content).strip()
+    cleaned_content = _remove_chronos_comments(markdown_content)
     final_content = (
-        f"{cleaned_content}\n\n"
-        f"<!-- {chunk_tag}: {chunk_b64} -->\n"
-        f"<!-- {_LOCATOR_TAG}: {locator_b64} -->\n"
+        cleaned_content
+        + "\n"
+        + f"<!-- {chunk_tag}: {chunk_b64} -->\n"
+        + f"<!-- {_LOCATOR_TAG}: {locator_b64} -->\n"
     )
 
     temp_dir = Path(tempfile.mkdtemp(dir=target_path.parent))
     temp_file = temp_dir / target_path.name
     try:
-        temp_file.write_text(final_content, "utf-8")
+        # newline=""" would be invalid for Path.write_text, so use open()
+        # explicitly to avoid newline translation on platforms such as Windows.
+        with temp_file.open("w", encoding="utf-8", newline="") as handle:
+            handle.write(final_content)
         os.replace(temp_file, target_path)
     except Exception as error:
         raise OSError(f"Failed to save file securely: {error}") from error
